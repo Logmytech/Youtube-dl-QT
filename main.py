@@ -12,6 +12,10 @@ from Threads.Download import Download
 from Threads.PostProcessor import PostProcessor
 
 
+#My sutff
+import json
+
+
 # For getting the icon to work
 import ctypes
 try:
@@ -54,9 +58,31 @@ class MainWindow(QtGui.QMainWindow):
         self.ui.tableWidget.horizontalHeader().setResizeMode(0, QtGui.QHeaderView.Stretch)
         self.rowcount = 0
 
+        #My stuff begin
+
+        self.down_list_file_read = open('down_list.json',"r")
+        print("Opened JSON")
+
+        try:
+            self.down_list = json.load(self.down_list_file_read)
+            print(self.down_list)
+        except Exception as e:
+            print(e)
+            self.down_list = []
+            print("Empty JSON")
+
+        for resume_dict in self.down_list:
+            can_download, rowcount = self.can_download(resume_dict['url'])
+            if can_download:
+                self.download_url(resume_dict['url'] ,resume_dict['directory'])
+
+
+        #My stuff end
+
         self.connect_menu_action()
         self.show()
 
+        
     def set_connections(self):
         self.ui.download_btn.clicked.connect(self.handleButton)
         self.ui.browse_btn.clicked.connect(self.set_destination)
@@ -145,17 +171,26 @@ class MainWindow(QtGui.QMainWindow):
         else:
             self.ui.statusbar.showMessage('Already Converted')
 
-    def download_url(self, url, row = None):
+
+
+
+    def download_url(self, url, directory = None, row = None):
         if row >= 0:
             row = row
         elif row is None:
             row = self.rowcount
-
-        directory = str(self.ui.saveToLineEdit.text())
+        
+        if directory:
+            directory = directory
+        else:
+            directory = str(self.ui.saveToLineEdit.text())
+        
         quality = False
+        
         if self.ui.ConvertCheckBox.isChecked():
             quality = str(self.ui.ConvertComboBox.currentText())
-        print row, self.rowcount
+        print(row, self.rowcount)
+        
         options = {
             'url': url,
             'directory': directory,
@@ -164,6 +199,24 @@ class MainWindow(QtGui.QMainWindow):
             'convert_format': quality,
             'parent':self,
         }
+
+        #My stuff start
+        print options
+
+        my_options = {
+        'url' : options['url'],
+        'directory' : options['directory'],
+        'convert_format' : options['convert_format'],
+        }
+
+        self.down_list.append(my_options)
+        print(self.down_list)
+
+        with open('down_list.json', "w") as down_list_file_write:
+
+            json.dump(self.down_list, down_list_file_write)
+
+        #My stuff end
 
         if not self.ui.DeleteFileCheckBox.isChecked():
             options['keep_file'] = True
@@ -213,11 +266,11 @@ class MainWindow(QtGui.QMainWindow):
         if url not in self.url_list:
             for row, _url in self.complete_url_list.iteritems():
                 if url == _url:
-                    print "url already there:"
-                    print row, self.rowcount
+                    print("url already there:")
+                    print(row, self.rowcount)
                     return True, row
-            print "url not already there:"
-            print self.rowcount, self.rowcount
+            print("url not already there:")
+            print(self.rowcount, self.rowcount)
             return True, self.rowcount
         else:
             return False, self.rowcount
@@ -226,8 +279,8 @@ class MainWindow(QtGui.QMainWindow):
         try:
             self.url_list.remove(url)
         except:
-            print url
-            print self.url_list
+            print(url)
+            print(self.url_list)
             return
 
     def add_to_table(self, values):
