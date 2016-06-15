@@ -12,10 +12,6 @@ from Threads.Download import Download
 from Threads.PostProcessor import PostProcessor
 
 
-#My sutff
-import json
-
-
 # For getting the icon to work
 import ctypes
 try:
@@ -57,32 +53,23 @@ class MainWindow(QtGui.QMainWindow):
         self.thread_pool = {}
         self.ui.tableWidget.horizontalHeader().setResizeMode(0, QtGui.QHeaderView.Stretch)
         self.rowcount = 0
-
-        #My stuff begin
-
-        self.down_list_file_read = open('down_list.json',"r")
-        print("Opened JSON")
-
-        try:
-            self.down_list = json.load(self.down_list_file_read)
-            print(self.down_list)
-        except Exception as e:
-            print(e)
-            self.down_list = []
-            print("Empty JSON")
-
-        for resume_dict in self.down_list:
-            can_download, rowcount = self.can_download(resume_dict['url'])
-            if can_download:
-                self.download_url(resume_dict['url'] ,resume_dict['directory'])
-
-
-        #My stuff end
+        #My code start
+        self.opt_list = []
+        with f as open('links_to_resume.json', 'r+'):
+            self.opt_list = json.load(f)
+        print(opt_list)
 
         self.connect_menu_action()
-        self.show()
 
-        
+        self.resume_links(opt_list)
+#My code end
+        self.show()
+    
+    def resume_links(opt_list):
+        for i in opt_list:
+            if can_download, rowcount = self.can_download(i['url']):
+                    self.download_url(self, i['url'],  row = rowcount, by_user = False, directory = i['directory'], quality = i['quality'])
+
     def set_connections(self):
         self.ui.download_btn.clicked.connect(self.handleButton)
         self.ui.browse_btn.clicked.connect(self.set_destination)
@@ -171,26 +158,21 @@ class MainWindow(QtGui.QMainWindow):
         else:
             self.ui.statusbar.showMessage('Already Converted')
 
-
-
-
-    def download_url(self, url, directory = None, row = None):
+    def download_url(self, url,  row = None, by_user = True, directory = os.getcwd(), quality = False):
         if row >= 0:
             row = row
         elif row is None:
             row = self.rowcount
-        
-        if directory:
-            directory = directory
-        else:
+
+#My code start
+        if by_user == True:
             directory = str(self.ui.saveToLineEdit.text())
-        
-        quality = False
-        
-        if self.ui.ConvertCheckBox.isChecked():
-            quality = str(self.ui.ConvertComboBox.currentText())
-        print(row, self.rowcount)
-        
+            quality = False
+            if self.ui.ConvertCheckBox.isChecked():
+                quality = str(self.ui.ConvertComboBox.currentText())
+           print row, self.rowcount
+        else:
+            pass
         options = {
             'url': url,
             'directory': directory,
@@ -200,26 +182,18 @@ class MainWindow(QtGui.QMainWindow):
             'parent':self,
         }
 
-        #My stuff start
-        print options
+#My code for adding to resume list and writing to json for storage.
+       opt_list.append(options)
 
-        my_options = {
-        'url' : options['url'],
-        'directory' : options['directory'],
-        'convert_format' : options['convert_format'],
-        }
+        with f as open('links_to_resume.json', 'w+'):
+            json.dump(f)
 
-        self.down_list.append(my_options)
-        print(self.down_list)
-
-        with open('down_list.json', "w") as down_list_file_write:
-
-            json.dump(self.down_list, down_list_file_write)
-
-        #My stuff end
+        print(opt_list)
+#My code end
 
         if not self.ui.DeleteFileCheckBox.isChecked():
             options['keep_file'] = True
+
 
         self.thread_pool['thread{}'.format(row)] = Download(options)
         self.thread_pool['thread{}'.format(row)].status_bar_signal.connect(self.ui.statusbar.showMessage)
@@ -242,7 +216,8 @@ class MainWindow(QtGui.QMainWindow):
             else:
                 self.ui.statusbar.showMessage('Downloading {0} files'.format(len(self.url_list)))
         else:
-            self.ui.statusbar.showMessage("done")
+self.ui.statusbar.showMessage("done")
+
 
     def handleButton(self):
         url = str(self.ui.videoUrlLineEdit.text())
@@ -266,21 +241,28 @@ class MainWindow(QtGui.QMainWindow):
         if url not in self.url_list:
             for row, _url in self.complete_url_list.iteritems():
                 if url == _url:
-                    print("url already there:")
-                    print(row, self.rowcount)
+                    print "url already there:"
+                    print row, self.rowcount
                     return True, row
-            print("url not already there:")
-            print(self.rowcount, self.rowcount)
+            print "url not already there:"
+            print self.rowcount, self.rowcount
             return True, self.rowcount
         else:
             return False, self.rowcount
+    #My code start
+    def remove_opt_list(url):
+        for n, opt_dict in enumerate(self.opt_list):
+            if url in opt_dict['url']:
+                opt_list.pop(n)
+    #My code end
 
     def remove_url(self,url):
         try:
             self.url_list.remove(url)
+            self.remove_opt_list(url)
         except:
-            print(url)
-            print(self.url_list)
+            print url
+            print self.url_list
             return
 
     def add_to_table(self, values):
@@ -337,4 +319,4 @@ if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     myapp = MainWindow()
     myapp.show()
-    sys.exit(app.exec_())
+sys.exit(app.exec_())
